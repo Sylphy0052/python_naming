@@ -1,5 +1,4 @@
-import binascii
-import numpy as np
+import math
 # -*- coding: utf-8 -*-
 
 class Filsys:
@@ -62,6 +61,11 @@ class Inode:
         pc += INT16 * n
         return ret, pc
 
+class Dir:
+    def __init__(self, ino, name):
+        self.ino = ino
+        self.name = name
+
 IALLC = 0o100000
 IFMT = 0o60000
 IFDIR = 0o40000
@@ -81,71 +85,136 @@ INT16 = 2
 BLOCK_SIZE = 512
 INODE_SIZE = 32
 ROOT_INODE = 0
+NAME_SIZE = 14
 
 ENDIAN = 'little'
 
+filsys = None
+inodes = []
+strages = []
+current_inode = None
+
+def getDirList():
+    global filsys, inodes, strages, current_inode
+    inode = current_inode
+    dir_list = []
+    for addr in inode.i_addr:
+        if addr == 0:
+            break
+        offset = addr - filsys.s_isize - 2
+        strage = strages[offset]
+        pc = 0
+        while(pc < BLOCK_SIZE):
+            if int.from_bytes(strage[pc + 2 : pc + NAME_SIZE], ENDIAN) == 0:
+                pc += NAME_SIZE + 2
+                continue
+            dir_inode = inodes[int.from_bytes(strage[pc : pc + 1], ENDIAN)]
+            name = ''
+            for c in strage[pc + 2 : pc + NAME_SIZE + 2].decode('utf-8'):
+                if c == '\0':
+                    break
+                name += c
+
+            dir_c = Dir(dir_inode, name)
+            dir_list.append(dir_c)
+            pc += NAME_SIZE + 2
+
+    dir_list = sorted(dir_list, key=lambda dir_c: dir_c.name)
+    return dir_list
+
+def ls(flg):
+    global filsys, inodes, strages, current_inode
+    dir_list = getDirList()
+
+    if flg:
+        print("ls -l")
+        for dir_c in dir_list:
+            option = ''
+            inode = dir_c.ino
+            file_size = math.ceil((inode.i_size0 << 8) + inode.i_size1)
+            option += 'r' if inode.i_mode & IFDIR else '-'
+            for i in range(3):
+                imode = inode.i_mode << (i * 3)
+                option += 'r' if imode & IREAD else '-'
+                option += 'w' if imode & IWRITE else '-'
+                option += 'x' if imode & IEXEC else '-'
+
+            print("{0:>10} {1:>8} {2}".format(option, file_size, str(dir_c.name)))
+
+    else:
+        for dir_c in dir_list:
+            print(str(dir_c.name))
+
+def cd(dir_name):
+    global current_inode, inodes
+    dir_list = getDirList()
+    if dir_name == '/':
+        current_inode = inodes[ROOT_INODE]
+        return
+
+    to_dir = None
+    for dir_c in dir_list:
+        if dir_c.name == dir_name:
+            to_dir = dir_c
+            break
+
+    if to_dir == None:
+        print("Not Found")
+        return
+
+    if to_dir.ino.i_mode & IFDIR:
+        current_inode = to_dir.ino
+    else:
+        print("Not Directory")
+
 def main():
+    global filsys, inodes, strages, current_inode
     pc = 0
     datas = open("v6root", "rb").read()
     data_length = len(datas)
-    # print("byte_length : ", data_length)
 
     # 読み飛ばし
-    # print("This block is used when system is started running")
-    # print(binascii.hexlify(datas[pc : pc + BLOCK_SIZE]))
     pc += BLOCK_SIZE
 
     # スーパーブロック
-    # print("This block is super block")
-    # print(binascii.hexlify(datas[pc : pc + BLOCK_SIZE]))
     filsys = Filsys(datas[pc : pc + BLOCK_SIZE])
     pc += BLOCK_SIZE
-    # print("filsys")
 
-    # inodes = Inode
-    inode_num = filsys.s_isize
-    # print("inode_num : ", filsys.s_isize)
-    # print("inode 1")
+    inode_num = math.ceil(filsys.s_isize * BLOCK_SIZE / INODE_SIZE)
 
-    print("inode")
-    inodes = []
-    print(binascii.hexlify(datas[pc : pc + inode_num * INODE_SIZE]))
     for i in range(inode_num):
-        num = i + 1
         inode = Inode(datas[pc : pc + INODE_SIZE])
         inodes.append(inode)
-        print(i, "imode : ", oct(inode.i_mode))
         pc += INODE_SIZE
 
     strage_num = filsys.s_fsize
-    print("strage_num : ", filsys.s_fsize)
 
-    print("strage")
-    strages = []
-    print(binascii.hexlify(datas[pc : pc + strage_num * BLOCK_SIZE]))
     for i in range(strage_num):
-        num = i + 1
         strage = datas[pc : pc + BLOCK_SIZE]
         strages.append(strage)
         pc += BLOCK_SIZE
 
-    print("strage : ", hex(strages[0]))
+    current_inode = inodes[ROOT_INODE]
 
+    while(True):
+        print(">>", end=" ")
+        command = input()
+        commands = command.split(' ')
+        command_len = len(commands)
+        print(commands)
+        if commands[0] == "ls":
+            if command_len == 1 or (command_len == 2 and commands[1] == ''):
+                ls(False)
+            elif command_len == 2 and commands[1] == '-l':
+                ls(True)
+        if commands[0] == "cd":
+            if command_len != 2:
+                print("cd dirname")
+            else:
+                cd(commands[1])
 
-
-    # inode = Inode(datas[pc : pc + NEXT])
-    # inodes.append(inode)
-    # pc += INODE_SIZE * BYTE
-    # inode_number += 1
-
-    # while(pc < data_length):
-    #     print("inode 1")
-    #     print(binascii.hexlify(datas[pc : pc + INODE_SIZE]))
-    #
-    #     inode = Inode(datas[pc : pc + NEXT])
-    #     inodes.append(inode)
-    #     pc += INODE_SIZE * BYTE
-    #     inode_number += 1
+        elif command == "quit":
+            break
 
 if __name__ == '__main__':
     main()
