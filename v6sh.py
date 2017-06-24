@@ -183,7 +183,7 @@ def ls(flg):
             option = ''
             inode = dir_c.ino
             file_size = math.ceil((inode.i_size0 << 8) + inode.i_size1)
-            option += 'r' if inode.i_mode & IFDIR else '-'
+            option += 'd' if inode.i_mode & IFDIR else '-'
             for i in range(3):
                 imode = inode.i_mode << (i * 3)
                 option += 'r' if imode & IREAD else '-'
