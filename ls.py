@@ -32,6 +32,20 @@ class Filsys:
         pc += INT16 * n
         return ret, pc
 
+    def print_info(self):
+        print('s_isize : {0}'.format(self.s_isize))
+        print('s_fsize : {0}'.format(self.s_fsize))
+        print('s_nfree : {0}'.format(self.s_nfree))
+        print('s_free : {0}'.format(self.s_free))
+        print('s_ninod : {0}'.format(self.s_ninod))
+        print('s_inode : {0}'.format(self.s_inode))
+        print('s_flock : {0}'.format(self.s_flock))
+        print('s_ilock : {0}'.format(self.s_ilock))
+        print('s_fmod : {0}'.format(self.s_fmod))
+        print('s_ronly : {0}'.format(self.s_ronly))
+        print('s_time : {0}'.format(self.s_time))
+        print('pad : {0}'.format(self.pad))
+
 
 class Inode:
     def __init__(self, datas):
@@ -61,10 +75,25 @@ class Inode:
         pc += INT16 * n
         return ret, pc
 
+    def print_info(self):
+        print('i_mode : {0}'.format(oct(self.i_mode)))
+        print('i_nlink : {0}'.format(self.i_nlink))
+        print('i_uid : {0}'.format(self.i_uid))
+        print('i_gid : {0}'.format(self.i_gid))
+        print('i_size0 : {0}'.format(self.i_size0))
+        print('i_size1 : {0}'.format(self.i_size1))
+        print('i_addr : {0}'.format(self.i_addr))
+        print('i_astime : {0}'.format(self.i_astime))
+        print('i_mtime : {0}'.format(self.i_mtime))
+
 class Dir:
     def __init__(self, ino, name):
         self.ino = ino
         self.name = name
+
+    def print_info(self):
+        self.ino.print_info()
+        print('name : {0}'.format(self.name))
 
 IALLC = 0o100000
 IFMT = 0o60000
@@ -94,6 +123,27 @@ inodes = []
 strages = []
 current_inode = None
 
+def print_help():
+    commands = ['ls [-l]',
+                'cd dir_name',
+                'inode inode_num',
+                'filsys',
+                'dir',
+                'help',
+                'quit']
+
+    descriptions = ['Display a list of files and directories',
+                   'Change directory to dir_name',
+                   'Display information of inode[inode_num]',
+                   'Display information of filsys',
+                   'Display information of current files or directories',
+                   'Display help',
+                   'Finish the program',
+                   ]
+
+    for i in range(len(commands)):
+        print('{0:<17} : {1}'.format(commands[i], descriptions[i]))
+
 def getDirList():
     global filsys, inodes, strages, current_inode
     inode = current_inode
@@ -105,10 +155,12 @@ def getDirList():
         strage = strages[offset]
         pc = 0
         while(pc < BLOCK_SIZE):
+            # 何もないの飛ばす
             if int.from_bytes(strage[pc + 2 : pc + NAME_SIZE], ENDIAN) == 0:
                 pc += NAME_SIZE + 2
                 continue
-            dir_inode = inodes[int.from_bytes(strage[pc : pc + 1], ENDIAN)]
+
+            dir_inode = inodes[int.from_bytes(strage[pc : pc + 2], ENDIAN) - 1]
             name = ''
             for c in strage[pc + 2 : pc + NAME_SIZE + 2].decode('utf-8'):
                 if c == '\0':
@@ -127,7 +179,6 @@ def ls(flg):
     dir_list = getDirList()
 
     if flg:
-        print("ls -l")
         for dir_c in dir_list:
             option = ''
             inode = dir_c.ino
@@ -201,20 +252,34 @@ def main():
         command = input()
         commands = command.split(' ')
         command_len = len(commands)
-        print(commands)
-        if commands[0] == "ls":
-            if command_len == 1 or (command_len == 2 and commands[1] == ''):
-                ls(False)
-            elif command_len == 2 and commands[1] == '-l':
-                ls(True)
-        if commands[0] == "cd":
-            if command_len != 2:
-                print("cd dirname")
-            else:
-                cd(commands[1])
+        if commands[0] == "ls" and (command_len == 1 or (command_len == 2 and commands[1] == '')):
+            ls(False)
+
+        elif commands[0] == "ls" and (command_len == 2 and commands[1] == '-l'):
+            ls(True)
+
+        elif commands[0] == "cd" and command_len == 2:
+            cd(commands[1])
+
+        elif commands[0] == 'inode' and command_len == 2:
+            inodes[int(commands[1])].print_info()
+
+        elif commands[0] == 'filsys' and command_len == 1:
+            filsys.print_info()
+
+        elif commands[0] == 'dir' and command_len == 1:
+            for dir_c in getDirList():
+                dir_c.print_info()
 
         elif command == "quit":
             break
+
+        elif command == 'help':
+            print_help()
+
+        else:
+            print('Undefined command...')
+            print('Use \"help\"')
 
 if __name__ == '__main__':
     main()
