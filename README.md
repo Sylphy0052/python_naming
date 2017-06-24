@@ -28,6 +28,12 @@
 - `help`
 
 ![help](./screenshot/help.png)
+- `cd usr` & `pwd` & `ls /lib`
+
+![cd-pwd-ls](./screenshot/cd-pwd-ls.png)
+- `cd usr` & `pwd` & `ls -l /lib`
+
+![cd-pwd-ls-l](./screenshot/cd-pwd-ls-l.png)
 
 ## 苦労(工夫)した点
 - 一応helpとか作ってそれらしくした
