@@ -122,6 +122,7 @@ filsys = None
 inodes = []
 strages = []
 current_inode = None
+working_directory = []
 
 def print_help():
     commands = ['ls [-l]',
@@ -129,6 +130,7 @@ def print_help():
                 'inode inode_num',
                 'filsys',
                 'dir',
+                'pwd',
                 'help',
                 'quit']
 
@@ -137,6 +139,7 @@ def print_help():
                    'Display information of inode[inode_num]',
                    'Display information of filsys',
                    'Display information of current files or directories',
+                   'Display the current directory name',
                    'Display help',
                    'Finish the program',
                    ]
@@ -196,12 +199,22 @@ def ls(flg):
         for dir_c in dir_list:
             print(str(dir_c.name))
 
-def cd(dir_name):
-    global current_inode, inodes
+def _cd(dir_name):
+    global current_inode, inodes, working_directory
     dir_list = getDirList()
     if dir_name == '/':
         current_inode = inodes[ROOT_INODE]
+        working_directory = ['/']
         return
+
+    if dir_name == '..':
+        working_directory.pop()
+        if len(working_directory) == 0:
+            working_directory = ['/']
+    elif dir_name == '.':
+        pass
+    else:
+        working_directory.append(dir_name)
 
     to_dir = None
     for dir_c in dir_list:
@@ -218,8 +231,36 @@ def cd(dir_name):
     else:
         print("Not Directory")
 
+def cd(dir_name):
+    dir_names = dir_name.split('/')
+    if dir_name[0] == '/':
+        _cd(dir_name[0])
+
+    for i in range(len(dir_names)):
+        if dir_names[i] == '':
+            continue
+        else:
+            _cd(dir_names[i])
+
+def pwd():
+    global working_directory
+    print('/', end = '')
+    if len(working_directory) == 1:
+        pass
+    else:
+        for i in range(1, len(working_directory)):
+            print(working_directory[i], end = '')
+            if i != len(working_directory) - 1:
+                print('/', end = '')
+    # for dir_name in working_directory:
+        # if dir_name[i] == '/':
+        #     pass
+        # else:
+        #     print('/' + dir_name, end = '')
+    print()
+
 def main():
-    global filsys, inodes, strages, current_inode
+    global filsys, inodes, strages, current_inode, working_directory
     pc = 0
     datas = open("v6root", "rb").read()
     data_length = len(datas)
@@ -246,6 +287,7 @@ def main():
         pc += BLOCK_SIZE
 
     current_inode = inodes[ROOT_INODE]
+    working_directory = ['/']
 
     while(True):
         print(">>", end=" ")
@@ -270,6 +312,9 @@ def main():
         elif commands[0] == 'dir' and command_len == 1:
             for dir_c in getDirList():
                 dir_c.print_info()
+
+        elif command == "pwd" and command_len == 1:
+            pwd()
 
         elif command == "quit":
             break

@@ -41,4 +41,6 @@
 # 名前順にソート
 sorted(dir_list, key=lambda dir_c: dir_c.name)
 ```
-- `cd /usr/bin`とかできるようにしたい
+- `cd /usr/bin`のように複数ディレクトリの移動が可能
+- `pwd`を実装した
+- `ls /usr/bin`とかできるようにしたい
