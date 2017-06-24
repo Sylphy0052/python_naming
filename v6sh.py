@@ -125,7 +125,7 @@ current_inode = None
 working_directory = []
 
 def print_help():
-    commands = ['ls [-l]',
+    commands = ['ls [-l] [dir_name]',
                 'cd dir_name',
                 'inode inode_num',
                 'filsys',
@@ -199,13 +199,30 @@ def ls(flg):
         for dir_c in dir_list:
             print(str(dir_c.name))
 
+def _ls(dir_name, flg):
+    global current_inode, working_directory
+    dir_names = dir_name.split('/')
+    inode_bak = current_inode
+    pwd_bak = working_directory
+    if dir_name[0] == '/':
+        _cd(dir_name[0])
+
+    for i in range(len(dir_names)):
+        if dir_names[i] == '':
+            continue
+        else:
+            _cd(dir_names[i])
+    ls(flg)
+    working_directory = pwd_bak
+    current_inode = inode_bak
+
 def _cd(dir_name):
     global current_inode, inodes, working_directory
     dir_list = getDirList()
     if dir_name == '/':
         current_inode = inodes[ROOT_INODE]
         working_directory = ['/']
-        return
+        return True
 
     if dir_name == '..':
         working_directory.pop()
@@ -224,14 +241,19 @@ def _cd(dir_name):
 
     if to_dir == None:
         print("Not Found")
-        return
+        return False
 
     if to_dir.ino.i_mode & IFDIR:
         current_inode = to_dir.ino
     else:
         print("Not Directory")
+        return False
+    return True
 
 def cd(dir_name):
+    global current_inode, working_directory
+    inode_bak = current_inode
+    pwd_bak = working_directory
     dir_names = dir_name.split('/')
     if dir_name[0] == '/':
         _cd(dir_name[0])
@@ -240,7 +262,11 @@ def cd(dir_name):
         if dir_names[i] == '':
             continue
         else:
-            _cd(dir_names[i])
+            flg = _cd(dir_names[i])
+            if not flg:
+                current_inode = inode_bak
+                working_directory = pwd_bak
+                return
 
 def pwd():
     global working_directory
@@ -297,8 +323,16 @@ def main():
         if commands[0] == "ls" and (command_len == 1 or (command_len == 2 and commands[1] == '')):
             ls(False)
 
-        elif commands[0] == "ls" and (command_len == 2 and commands[1] == '-l'):
+        elif commands[0] == "ls" and command_len == 2 and commands[1] == '-l':
             ls(True)
+
+        elif commands[0] == "ls" and command_len == 2 and commands[1] != '-l':
+            dir_name = commands[1]
+            _ls(dir_name, False)
+
+        elif commands[0] == "ls" and command_len == 3 and commands[1] == '-l':
+            dir_name = commands[2]
+            _ls(dir_name, True)
 
         elif commands[0] == "cd" and command_len == 2:
             cd(commands[1])
